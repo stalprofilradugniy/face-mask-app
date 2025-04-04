@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Маски для Лица</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Примерь маску!</h1>
+
+    <div class="container">
+        <video id="video" width="640" height="480" autoplay muted playsinline></video>
+        <canvas id="canvas" width="640" height="480"></canvas>
+        <div id="loading">Загрузка моделей... Пожалуйста, подождите.</div>
+    </div>
+
+    <div id="controls">
+        <p>Очки:</p>
+        <button data-mask="glasses1">Очки 1</button>
+        <button data-mask="glasses2">Очки 2</button>
+        <button data-mask="glasses3">Очки 3</button>
+        <p>Короны:</p>
+        <button data-mask="crown1">Корона 1</button>
+        <button data-mask="crown2">Корона 2</button>
+        <button data-mask="crown3">Корона 3</button>
+        <p>Убрать:</p>
+        <button data-mask="none">Без маски</button>
+    </div>
+
+    <!-- Подключаем библиотеку face-api.js (лучше использовать min-версию) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- Подключаем наш скрипт (defer значит, что он выполнится после загрузки HTML) -->
+    <script defer src="script.js"></script>
+</body>
+</html>
