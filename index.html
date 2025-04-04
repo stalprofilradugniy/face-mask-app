@@ -5,31 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Маски для Лица</title>
     <link rel="stylesheet" href="style.css">
+    // <!-- Добавим defer и async для скриптов, чтобы они не блокировали рендеринг
+    //     и выполнялись после загрузки HTML -->
+    // <!-- face-api.js лучше загружать первым -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script defer src="script.js"></script>
 </head>
 <body>
-       <!-- Блок управления очками - ПЕРЕМЕЩЕН СЮДА -->
+    // <h1>Примерь маску!</h1>
+
+    // <!-- Блок управления очками -->
     <div id="glasses-controls" class="control-set">
+    //    <p>Очки:</p>
         <button data-mask="glasses1">Очки 1</button>
         <button data-mask="glasses2">Очки 2</button>
         <button data-mask="glasses3">Очки 3</button>
     </div>
 
-    <!-- Контейнер с видео и холстом -->
+    // <!-- Контейнер с видео и холстом -->
     <div class="container">
+    //    <!-- Убраны width/height атрибуты -->
         <video id="video" autoplay muted playsinline></video>
         <canvas id="canvas"></canvas>
-        <div id="loading">Загрузка моделей... Пожалуйста, подождите.</div>
+    // <!-- Индикатор загрузки -->
+        <div id="loading">Загрузка...</div>
     </div>
 
-    <!-- Блок с остальными кнопками (короны, убрать) -->
+    // <!-- Блок с остальными кнопками (короны, убрать) -->
     <div id="other-controls" class="control-set">
+    //    <p>Короны:</p>
         <button data-mask="crown1">Корона 1</button>
         <button data-mask="crown2">Корона 2</button>
         <button data-mask="crown3">Корона 3</button>
+        <p>Убрать:</p>
         <button data-mask="none">Без маски</button>
     </div>
 
-    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    <script defer src="script.js"></script>
 </body>
 </html>
