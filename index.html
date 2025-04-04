@@ -10,12 +10,14 @@
     <h1>Примерь маску!</h1>
 
     <div class="container">
-        <video id="video" width="640" height="480" autoplay muted playsinline></video>
-        <canvas id="canvas" width="640" height="480"></canvas>
+        <!-- Убрали width и height отсюда -->
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas"></canvas>
         <div id="loading">Загрузка моделей... Пожалуйста, подождите.</div>
     </div>
 
     <div id="controls">
+        <!-- Кнопки остаются без изменений -->
         <p>Очки:</p>
         <button data-mask="glasses1">Очки 1</button>
         <button data-mask="glasses2">Очки 2</button>
@@ -28,9 +30,7 @@
         <button data-mask="none">Без маски</button>
     </div>
 
-    <!-- Подключаем библиотеку face-api.js (лучше использовать min-версию) -->
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    <!-- Подключаем наш скрипт (defer значит, что он выполнится после загрузки HTML) -->
     <script defer src="script.js"></script>
 </body>
 </html>
