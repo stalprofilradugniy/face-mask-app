@@ -5,6 +5,8 @@ body {
     align-items: center;
     padding-top: 20px;
     background-color: #f0f0f0;
+    /* Добавим, чтобы убрать стандартные отступы */
+    margin: 0;
 }
 
 h1 {
@@ -13,26 +15,36 @@ h1 {
 
 .container {
     position: relative; /* Важно для позиционирования canvas */
-    width: 640px;
-    height: 480px;
+    width: 100%;      /* Занимает всю доступную ширину */
+    max-width: 640px; /* Ограничиваем максимальную ширину */
+    /* Убираем фиксированную высоту, она определится контентом */
+    margin: 0 auto;   /* Центрируем контейнер */
     border: 1px solid #ccc;
-    background-color: #000; /* Фон на случай, если видео не загрузится */
+    background-color: #000;
+    /* Добавим overflow: hidden на всякий случай */
+    overflow: hidden;
 }
 
 #video {
     display: block; /* Убирает лишний отступ снизу */
-    width: 100%;
-    height: 100%;
-    object-fit: cover; /* Масштабирует видео, сохраняя пропорции */
+    width: 100%;    /* Заполняет контейнер по ширине */
+    height: auto;   /* Высота подстраивается для сохранения пропорций */
+    /* object-fit больше не так критичен, но можно оставить */
+    object-fit: cover;
 }
 
 #canvas {
-    position: absolute; /* Накладывает canvas поверх video */
+    position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    /* Размеры canvas (ширина/высота в пикселях для рисования)
+       будут установлены в JS, но его отображаемый размер
+       должен соответствовать видео */
+    width: 100%; /* Растягиваем отображение canvas по ширине контейнера */
+    height: 100%;/* Растягиваем отображение canvas по высоте контейнера */
+                 /* Важно: Это CSS-размеры! JS установит реальные пиксели */
 }
+
 
 #loading {
     position: absolute;
@@ -43,7 +55,7 @@ h1 {
     background-color: rgba(0, 0, 0, 0.7);
     padding: 15px;
     border-radius: 5px;
-    z-index: 10; /* Поверх видео и canvas */
+    z-index: 10;
     text-align: center;
 }
 
@@ -73,7 +85,7 @@ h1 {
 }
 
 #controls button[data-mask="none"] {
-    background-color: #f44336; /* Красный для кнопки "Без маски" */
+    background-color: #f44336;
 }
 
 #controls button[data-mask="none"]:hover {
