@@ -48,21 +48,50 @@ async function startVideo() {
         console.log("Запрос доступа к камере...");
         const stream = await navigator.mediaDevices.getUserMedia({
              video: {
-                // Запрашиваем фронтальную камеру (на мобильных)
                 facingMode: 'user'
+                // Можно добавить желаемые размеры, но лучше позволить браузеру выбрать
+                // width: { ideal: 640 },
+                // height: { ideal: 480 }
              }
         });
         video.srcObject = stream;
         console.log("Доступ к камере получен.");
-        // Ждем, пока метаданные видео загрузятся, чтобы узнать размеры
+
+        // ВАЖНАЯ ЧАСТЬ: Установка размеров CANVAS по РЕАЛЬНЫМ размерам видео
         video.onloadedmetadata = () => {
             console.log("Метаданные видео загружены.");
-            // Устанавливаем размер canvas равным реальному размеру видео
-            // Это важно для правильного отображения
+            // Устанавливаем РАЗМЕРЫ ДЛЯ РИСОВАНИЯ на canvas
+            // равными реальному размеру видеопотока
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            console.log(`Размер видео: ${canvas.width}x${canvas.height}`);
+            console.log(`Реальный размер видео и Canvas для рисования: ${canvas.width}x${canvas.height}`);
+
+            // Дополнительно: можно подстроить размер контейнера, если нужно
+            // Но с текущим CSS это обычно не требуется
+            // const container = document.querySelector('.container');
+            // container.style.height = `${(video.videoHeight / video.videoWidth) * container.clientWidth}px`;
+
+             // Запускаем цикл детекции ТОЛЬКО ПОСЛЕ установки размеров canvas
+             // Убираем запуск из video.onplay и переносим сюда или в onplay,
+             // но только после того как размеры установлены.
+             // video.play(); // Если autoplay не сработал
+             // requestAnimationFrame(detectAndDraw); // Запускаем цикл здесь или в 'play'
         };
+
+        // Можно оставить этот обработчик 'play' для надежности запуска цикла
+        video.addEventListener('play', () => {
+            console.log("Видео начало проигрываться. Проверяем/запускаем цикл детекции.");
+            // Убедимся еще раз, что размеры canvas установлены
+            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                 canvas.width = video.videoWidth;
+                 canvas.height = video.videoHeight;
+                 console.log(`Размер canvas обновлен при play: ${canvas.width}x${canvas.height}`);
+            }
+            // Запускаем цикл рисования
+            requestAnimationFrame(detectAndDraw);
+        });
+
+
     } catch (err) {
         console.error("Ошибка доступа к камере: ", err);
         alert("Не удалось получить доступ к камере. Проверьте разрешения в браузере и убедитесь, что используется HTTPS.");
