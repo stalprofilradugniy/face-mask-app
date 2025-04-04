@@ -7,18 +7,22 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-     <div class="container">
-        <!-- Убрали width и height отсюда -->
+       <!-- Блок управления очками - ПЕРЕМЕЩЕН СЮДА -->
+    <div id="glasses-controls" class="control-set">
+        <button data-mask="glasses1">Очки 1</button>
+        <button data-mask="glasses2">Очки 2</button>
+        <button data-mask="glasses3">Очки 3</button>
+    </div>
+
+    <!-- Контейнер с видео и холстом -->
+    <div class="container">
         <video id="video" autoplay muted playsinline></video>
         <canvas id="canvas"></canvas>
         <div id="loading">Загрузка моделей... Пожалуйста, подождите.</div>
     </div>
 
-    <div id="controls">
-        <!-- Кнопки остаются без изменений -->
-        <button data-mask="glasses1">Очки 1</button>
-        <button data-mask="glasses2">Очки 2</button>
-        <button data-mask="glasses3">Очки 3</button>
+    <!-- Блок с остальными кнопками (короны, убрать) -->
+    <div id="other-controls" class="control-set">
         <button data-mask="crown1">Корона 1</button>
         <button data-mask="crown2">Корона 2</button>
         <button data-mask="crown3">Корона 3</button>
