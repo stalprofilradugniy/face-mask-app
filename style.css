@@ -6,7 +6,7 @@ body {
     padding: 20px 10px;
     background-color: #f0f0f0;
     margin: 0;
-    min-height: 100vh; /* Занимает всю высоту экрана */
+    min-height: 100vh;
 }
 
 h1 {
@@ -14,86 +14,29 @@ h1 {
     text-align: center;
 }
 
-/* Стили для ОБЩЕГО класса блоков управления */
-.control-set {
-    text-align: center;
-    width: 100%;
-    max-width: 640px; /* Соответствует макс. ширине видео контейнера */
-    margin-left: auto;
-    margin-right: auto;
-    padding: 0 10px; /* Небольшие боковые отступы для кнопок на узких экранах */
-    box-sizing: border-box; /* Чтобы padding не увеличивал max-width */
-}
-
-/* Стили для верхнего блока (очки) */
-#glasses-controls {
-    margin-bottom: 15px;
-}
-
-/* Стили для нижнего блока (короны, убрать) */
-#other-controls {
-    margin-top: 15px;
-}
-
-/* Стили для текста внутри блоков управления */
-.control-set p {
-    margin: 10px 0 5px 0;
-    font-weight: bold;
-}
-
-/* Общие стили для ВСЕХ кнопок масок */
-.control-set button {
-    padding: 8px 12px; /* Немного уменьшим padding для компактности */
-    margin: 5px;
-    cursor: pointer;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 14px;
-    transition: background-color 0.2s ease;
-}
-
-.control-set button:hover {
-    background-color: #45a049;
-}
-
-/* Специфичный стиль для кнопки "Без маски" */
-.control-set button[data-mask="none"] {
-    background-color: #f44336;
-}
-
-.control-set button[data-mask="none"]:hover {
-    background-color: #da190b;
-}
-
-
 /* --- Стили для контейнера видео и canvas --- */
 .container {
     position: relative;
     width: 100%;
-    max-width: 640px; /* Максимальная ширина */
-    margin: 0 auto; /* Центрирование */
+    max-width: 640px;
+    margin: 0 auto;
     border: 1px solid #ccc;
     background-color: #000;
     overflow: hidden;
-    /* Высота будет определяться встроенным видео */
 }
 
 #video {
-    display: block; /* Убирает лишний отступ */
-    width: 100%;    /* Заполняет контейнер по ширине */
-    height: auto;   /* Высота подстраивается для сохранения пропорций */
-    /* object-fit: cover; Можно использовать, если важно заполнение, но может обрезать */
+    display: block;
+    width: 100%;
+    height: auto;
 }
 
 #canvas {
-    position: absolute; /* Накладывается поверх видео */
+    position: absolute;
     top: 0;
     left: 0;
-    width: 100%;    /* CSS размер соответствует контейнеру */
-    height: 100%;   /* CSS размер соответствует контейнеру */
-    /* Реальные пиксельные размеры (атрибуты width/height) будут установлены JS */
+    width: 100%;
+    height: 100%;
 }
 
 #loading {
@@ -105,14 +48,41 @@ h1 {
     background-color: rgba(0, 0, 0, 0.8);
     padding: 20px;
     border-radius: 8px;
-    z-index: 10; /* Поверх видео и canvas */
+    z-index: 10;
     text-align: center;
     font-size: 1.1em;
-    /* Изначально скрыт, будет показан JS */
-    display: none;
+    display: none; /* Скрыт по умолчанию */
 }
 
-/* Состояние загрузки */
 #loading.visible {
-    display: block;
+    display: block; /* Показываем через класс */
+}
+
+/* --- Стили для кнопки скриншота --- */
+.screenshot-controls {
+    margin-top: 20px; /* Отступ сверху */
+    text-align: center; /* Центрирование кнопки */
+    width: 100%;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#screenshot-button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: #007bff; /* Синий цвет */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
+}
+
+#screenshot-button:hover {
+    background-color: #0056b3; /* Темно-синий при наведении */
+}
+
+#screenshot-button:active {
+    background-color: #004085; /* Еще темнее при нажатии */
 }
