@@ -1,83 +1,86 @@
-// Убедимся, что скрипт выполняется только после загрузки DOM
 document.addEventListener('DOMContentLoaded', (event) => {
 
     // --- Получение ссылок на HTML элементы ---
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const loadingIndicator = document.getElementById('loading');
-    const glassesControls = document.getElementById('glasses-controls');
-    const otherControls = document.getElementById('other-controls');
+    const screenshotButton = document.getElementById('screenshot-button'); // Кнопка скриншота
 
-    // Проверка наличия элементов (важно для отладки)
-    if (!video || !canvas || !loadingIndicator || !glassesControls || !otherControls) {
-        console.error("Ошибка: Не найден один или несколько HTML элементов (video, canvas, loading, glasses-controls, other-controls). Проверьте ID в HTML.");
+    // Проверка наличия элементов
+    if (!video || !canvas || !loadingIndicator || !screenshotButton) {
+        console.error("Ошибка: Не найден один или несколько HTML элементов (video, canvas, loading, screenshot-button). Проверьте ID в HTML.");
         alert("Ошибка инициализации приложения. Не найдены необходимые элементы.");
-        return; // Прерываем выполнение скрипта
+        return;
     }
 
     const ctx = canvas.getContext('2d');
 
     // --- Переменные состояния ---
-    let currentMaskName = 'none';
-    let currentMaskImage = null;
-    const maskImages = {};
-    let modelsLoaded = false; // Флаг для отслеживания загрузки моделей
-    let videoReady = false;   // Флаг для отслеживания готовности видео
+    let currentMaskType = 'none'; // 'glasses', 'crown', 'none'
+    let currentMaskFullPath = null; // Полный путь к файлу маски
+    let currentMaskImage = null;    // Объект Image для текущей маски
+    const maskImages = {}; // Кэш для загруженных изображений масок (ключ - полный путь)
+    let modelsLoaded = false;
+    let videoReady = false;
+    let maskChangeInterval = null; // ID для setInterval
 
-    // --- Конфигурация масок ---
-    const MASK_CONFIG = {
-        glasses1: { type: 'glasses', file: 'glasses1.png', scale: 1.1, offsetY: 0 },
-        glasses2: { type: 'glasses', file: 'glasses2.png', scale: 1.0, offsetY: 0 },
-        glasses3: { type: 'glasses', file: 'glasses3.png', scale: 1.2, offsetY: 0.05 },
-        crown1: { type: 'crown', file: 'crown1.png', scale: 1.3, offsetY: -0.4 },
-        crown2: { type: 'crown', file: 'crown2.png', scale: 1.5, offsetY: -0.5 },
-        crown3: { type: 'crown', file: 'crown3.png', scale: 1.4, offsetY: -0.45 },
-        none: { type: 'none', file: 'none.png' } // Должен быть пустой/прозрачный PNG
+    // --- Конфигурация типов масок (общая для типа) ---
+    // Настройки scale и offsetY теперь применяются ко всем маскам одного типа
+    const MASK_TYPE_CONFIG = {
+        glasses: { scale: 1.25, offsetY: 0 }, // Увеличил scale для очков
+        crown: { scale: 1.4, offsetY: -0.45 } // offsetY для нового расчета Y
     };
+
+    // --- Списки файлов масок (УКАЖИТЕ ТОЧНЫЕ ИМЕНА ФАЙЛОВ В ПАПКАХ!) ---
+    const AVAILABLE_MASKS = {
+        glasses: [
+            'glasses1.png',
+            'glasses2.png',
+            'glasses3.png'
+            // Добавьте другие файлы из masks/glasses/ сюда
+        ],
+        crowns: [
+            'crown1.png',
+            'crown2.png',
+            'crown3.png'
+            // Добавьте другие файлы из masks/crowns/ сюда
+        ]
+        // 'none' обрабатывается отдельно
+    };
+    const MASK_TYPES = Object.keys(AVAILABLE_MASKS); // ['glasses', 'crowns']
 
     // --- Функция отображения/скрытия загрузчика ---
     function showLoading(message) {
         if (loadingIndicator) {
             loadingIndicator.innerText = message;
-            loadingIndicator.classList.add('visible'); // Используем класс для показа
+            loadingIndicator.classList.add('visible');
         }
-         console.log(`Статус загрузки: ${message}`); // Логируем статус
+         console.log(`Статус загрузки: ${message}`);
     }
 
     function hideLoading() {
         if (loadingIndicator) {
-            loadingIndicator.classList.remove('visible'); // Скрываем через класс
+            loadingIndicator.classList.remove('visible');
         }
     }
 
     // --- Загрузка моделей face-api.js ---
     async function loadModels() {
-        // Абсолютный путь к моделям от корня репозитория на GitHub Pages
-        // Или относительный './models', если папка models лежит рядом с index.html
-        const MODEL_URL = './models'; // Убедитесь, что папка 'models' в корне репозитория!
-
+        const MODEL_URL = './models'; // Папка models в корне репозитория
         showLoading("Загрузка моделей...");
         console.log(`Загрузка моделей из: ${MODEL_URL}`);
-
         try {
-            // Используем Promise.all для параллельной загрузки
             await Promise.all([
                 faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                 faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL)
             ]);
             console.log("Модели face-api.js успешно загружены!");
             modelsLoaded = true;
-            // Не скрываем загрузчик здесь, ждем готовности видео
-            checkReadyAndStart(); // Проверяем, можно ли стартовать основной цикл
+            checkReadyAndStart();
         } catch (error) {
             console.error("!!! ОШИБКА загрузки моделей face-api.js:", error);
-            showLoading("Ошибка загрузки моделей! Проверьте путь и наличие файлов в папке /models. Обновите страницу (F5).");
-            // Здесь можно добавить более детальное сообщение об ошибке
-            if (error.message.includes('404')) {
-                alert("Не удалось загрузить файлы моделей (ошибка 404). Убедитесь, что папка 'models' с файлами моделей находится в корне репозитория на GitHub и путь в script.js указан верно.");
-            } else {
-                alert(`Произошла ошибка при загрузке моделей: ${error.message}`);
-            }
+            showLoading("Ошибка загрузки моделей! Проверьте путь и наличие файлов.");
+            alert(`Произошла ошибка при загрузке моделей: ${error.message}. Убедитесь, что папка 'models' существует и содержит нужные файлы.`);
         }
     }
 
@@ -85,175 +88,206 @@ document.addEventListener('DOMContentLoaded', (event) => {
     async function startVideo() {
         showLoading("Запрос доступа к камере...");
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'user'
-                    // Можно попробовать запросить конкретное разрешение, если стандартное не подходит
-                    // width: { ideal: 640 },
-                    // height: { ideal: 480 }
-                }
-            });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
             video.srcObject = stream;
             console.log("Доступ к камере получен.");
 
-            // Важно дождаться события 'loadedmetadata', чтобы узнать реальные размеры видео
             video.onloadedmetadata = () => {
                 console.log("Метаданные видео загружены.");
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
-                console.log(`Размер Canvas для рисования установлен: ${canvas.width}x${canvas.height}`);
-                videoReady = true; // Видео готово к обработке
-                checkReadyAndStart(); // Проверяем, можно ли стартовать основной цикл
+                console.log(`Размер Canvas: ${canvas.width}x${canvas.height}`);
+                videoReady = true;
+                checkReadyAndStart();
             };
 
-             // Обработчик 'play' для дополнительной надежности (если autoplay сработает)
-             video.addEventListener('play', () => {
+            video.addEventListener('play', () => {
                 console.log("Событие 'play' для видео.");
-                // Убедимся, что размеры холста установлены правильно
-                if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                 if (!videoReady && video.videoWidth > 0) { // Если loadedmetadata еще не сработало
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                     console.log(`Размер canvas уточнен при 'play': ${canvas.width}x${canvas.height}`);
-                }
-                videoReady = true; // Подтверждаем готовность
-                checkReadyAndStart();
-             });
-
+                    videoReady = true;
+                    console.log(`Размер Canvas установлен при 'play': ${canvas.width}x${canvas.height}`);
+                    checkReadyAndStart();
+                 } else if (videoReady) {
+                     checkReadyAndStart(); // На случай, если событие play пришло позже
+                 }
+            });
 
         } catch (err) {
             console.error("!!! ОШИБКА доступа к камере:", err);
             showLoading("Ошибка доступа к камере!");
-            if (err.name === "NotAllowedError") {
-                alert("Вы не разрешили доступ к камере. Пожалуйста, разрешите доступ в настройках браузера и обновите страницу.");
-            } else if (err.name === "NotFoundError") {
-                 alert("Камера не найдена. Убедитесь, что камера подключена и работает.");
-            } else {
-                alert(`Не удалось получить доступ к камере: ${err.name}. Убедитесь, что используется HTTPS.`);
-            }
+            alert(`Не удалось получить доступ к камере: ${err.name}. Убедитесь, что используется HTTPS и вы разрешили доступ.`);
         }
     }
 
-     // --- Функция проверки готовности и запуска основного цикла ---
-     function checkReadyAndStart() {
-        // Запускаем основной цикл ТОЛЬКО если и модели загружены, И видео готово
+    // --- Функция проверки готовности и запуска основного цикла ---
+    function checkReadyAndStart() {
         if (modelsLoaded && videoReady) {
-            console.log("Модели загружены и видео готово. Запускаем detectAndDraw().");
-            hideLoading(); // Скрываем индикатор загрузки
-            requestAnimationFrame(detectAndDraw); // Начинаем цикл обработки кадров
+            console.log("Модели загружены и видео готово. Запуск!");
+            hideLoading();
+            // Запускаем случайную смену масок
+            startRandomMaskChanges();
+            // Запускаем цикл отрисовки
+            requestAnimationFrame(detectAndDraw);
         } else {
-            console.log(`Ожидание готовности: Модели ${modelsLoaded ? 'ЗАГРУЖЕНЫ' : 'НЕ загружены'}, Видео ${videoReady ? 'ГОТОВО' : 'НЕ готово'}`);
-            // Показываем актуальный статус, если что-то еще не готово
-            if (!modelsLoaded) showLoading("Загрузка моделей...");
-            else if (!videoReady) showLoading("Ожидание видео...");
+             console.log(`Ожидание: Модели ${modelsLoaded ? 'OK' : 'Нет'}, Видео ${videoReady ? 'OK' : 'Нет'}`);
+             if (!modelsLoaded) showLoading("Загрузка моделей...");
+             else if (!videoReady) showLoading("Ожидание видео...");
         }
     }
 
-
-    // --- Предзагрузка изображений масок ---
+    // --- Предзагрузка изображений масок из подпапок ---
     function preloadMaskImages() {
         console.log("Предзагрузка изображений масок...");
+        let imagesToLoad = 0;
         let loadedCount = 0;
-        const maskKeys = Object.keys(MASK_CONFIG);
-        const totalMasks = maskKeys.length;
 
-        if (totalMasks === 0) {
-            console.warn("Нет масок для предзагрузки в MASK_CONFIG.");
-            return;
-        }
+        // Считаем общее количество масок для загрузки
+        MASK_TYPES.forEach(type => {
+            imagesToLoad += AVAILABLE_MASKS[type].length;
+        });
+         // Добавляем 'none.png', если он есть
+         const nonePngPath = './masks/none.png';
+         imagesToLoad++; // Считаем его в любом случае
+
+         console.log(`Всего масок для попытки загрузки: ${imagesToLoad}`);
 
         const checkAllLoaded = () => {
             loadedCount++;
-            // console.log(`Загружено масок: ${loadedCount}/${totalMasks}`);
-            if (loadedCount === totalMasks) {
-                console.log("Все изображения масок (или попытки загрузки) завершены.");
-                // Устанавливаем маску по умолчанию после загрузки всех
-                setCurrentMask('none');
+            // console.log(`Загружено изображений: ${loadedCount}/${imagesToLoad}`);
+            if (loadedCount === imagesToLoad) {
+                console.log("Предзагрузка изображений масок завершена (или попытки загрузки).");
+                // Можно установить начальную маску здесь, если нужно
+                // setCurrentMask('none', './masks/none.png');
             }
         };
 
-        maskKeys.forEach(name => {
-            const config = MASK_CONFIG[name];
-            if (!config.file) {
-                console.warn(`Маска '${name}' не имеет файла для загрузки.`);
-                loadedCount++; // Считаем как "загруженную", чтобы не блокировать
-                return;
-            }
+        // Загружаем маски из подпапок
+        MASK_TYPES.forEach(type => { // type = 'glasses' или 'crowns'
+            const folder = type; // Имя папки совпадает с ключом
+            AVAILABLE_MASKS[type].forEach(filename => {
+                const fullPath = `./masks/${folder}/${filename}`;
+                const img = new Image();
+                maskImages[fullPath] = img; // Ключ - ПОЛНЫЙ ПУТЬ
 
-            const img = new Image();
-            maskImages[name] = img; // Сразу добавляем в кэш
-
-            img.onload = () => {
-                // console.log(`Маска загружена: ${config.file}`);
-                if (img.naturalHeight === 0) {
-                    console.error(`Ошибка: Файл маски '${config.file}' загружен, но является некорректным изображением (высота 0).`);
-                    maskImages[name] = null; // Помечаем как невалидную
-                }
-                checkAllLoaded();
-            };
-            img.onerror = () => {
-                console.error(`!!! ОШИБКА загрузки изображения маски: ${config.file}`);
-                maskImages[name] = null; // Помечаем, что загрузка не удалась
-                checkAllLoaded();
-            };
-            // Путь к маскам ОТНОСИТЕЛЬНО index.html
-            img.src = `./masks/${config.file}`;
-            // console.log(`Начинаем загрузку: ${img.src}`);
+                img.onload = () => {
+                    if (img.naturalHeight === 0) {
+                        console.error(`Ошибка: Файл '${fullPath}' загружен, но некорректен.`);
+                        maskImages[fullPath] = null; // Невалидный
+                    }
+                     checkAllLoaded();
+                };
+                img.onerror = () => {
+                    console.error(`!!! ОШИБКА загрузки: ${fullPath}`);
+                    maskImages[fullPath] = null; // Ошибка загрузки
+                    checkAllLoaded();
+                };
+                img.src = fullPath;
+                // console.log(`Загрузка: ${fullPath}`);
+            });
         });
 
-        // На случай, если MASK_CONFIG пуст (хотя мы проверили выше)
-        if (totalMasks === loadedCount) {
-             console.log("Все изображения масок (или попытки загрузки) завершены (сценарий без файлов).");
-             setCurrentMask('none');
-        }
+         // Загружаем 'none.png'
+         const noneImg = new Image();
+         maskImages[nonePngPath] = noneImg;
+         noneImg.onload = () => { if (noneImg.naturalHeight === 0) maskImages[nonePngPath] = null; checkAllLoaded(); };
+         noneImg.onerror = () => { console.error(`!!! ОШИБКА загрузки: ${nonePngPath}`); maskImages[nonePngPath] = null; checkAllLoaded(); };
+         noneImg.src = nonePngPath;
+
+         // На случай, если не было файлов для загрузки
+         if (imagesToLoad === 0) {
+             console.warn("Нет файлов масок для загрузки в AVAILABLE_MASKS.");
+             checkAllLoaded();
+         }
     }
 
     // --- Установка текущей маски ---
-    function setCurrentMask(name) {
-        const config = MASK_CONFIG[name];
-        // Проверяем, есть ли конфиг, есть ли запись в кэше, и является ли она валидным загруженным изображением
-        if (config && maskImages[name] && maskImages[name].complete && maskImages[name].naturalHeight > 0) {
-            currentMaskName = name;
-            currentMaskImage = maskImages[name];
-            console.log(`Маска изменена на: ${name}`);
+    function setCurrentMask(type, fullPath) {
+        // Проверяем, есть ли изображение в кэше и валидно ли оно
+        if (maskImages[fullPath] && maskImages[fullPath].complete && maskImages[fullPath].naturalHeight > 0) {
+            currentMaskType = type; // 'glasses', 'crown', 'none'
+            currentMaskFullPath = fullPath;
+            currentMaskImage = maskImages[fullPath];
+            console.log(`Маска установлена: ${type} - ${fullPath}`);
         } else {
-            // Если запрошенная маска невалидна или это 'none' без картинки, ставим 'none'
-            console.warn(`Маска '${name}' не найдена, не загружена или некорректна. Устанавливаем 'none'.`);
-            currentMaskName = 'none';
-            // Пытаемся использовать заглушку 'none.png', если она есть и загружена
-            if (maskImages['none'] && maskImages['none'].complete && maskImages['none'].naturalHeight > 0) {
-                 currentMaskImage = maskImages['none'];
+             // Если запрошенная маска невалидна, устанавливаем 'none'
+            console.warn(`Не удалось установить маску: ${fullPath}. Установка 'none'.`);
+            currentMaskType = 'none';
+            currentMaskFullPath = './masks/none.png';
+            // Пытаемся использовать загруженный none.png, если он есть
+            if (maskImages[currentMaskFullPath] && maskImages[currentMaskFullPath].complete && maskImages[currentMaskFullPath].naturalHeight > 0) {
+                 currentMaskImage = maskImages[currentMaskFullPath];
             } else {
                  currentMaskImage = null; // Иначе маски не будет
             }
         }
     }
 
+    // --- Функция случайной смены маски ---
+    function changeMaskRandomly() {
+        // 1. Выбираем тип маски случайно (включая 'none')
+        const availableTypes = [...MASK_TYPES, 'none']; // ['glasses', 'crowns', 'none']
+        const randomTypeKey = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+
+        if (randomTypeKey === 'none') {
+            setCurrentMask('none', './masks/none.png');
+            return;
+        }
+
+        // 2. Выбираем случайный файл из списка для этого типа
+        const typeMasks = AVAILABLE_MASKS[randomTypeKey]; // Массив имен файлов
+        if (!typeMasks || typeMasks.length === 0) {
+             console.warn(`Нет доступных файлов для типа '${randomTypeKey}', устанавливаем 'none'.`);
+             setCurrentMask('none', './masks/none.png');
+             return;
+        }
+        const randomFilename = typeMasks[Math.floor(Math.random() * typeMasks.length)];
+        const fullPath = `./masks/${randomTypeKey}/${randomFilename}`; // Строим путь
+
+        // 3. Устанавливаем маску
+        const actualType = randomTypeKey === 'crowns' ? 'crown' : 'glasses'; // Приводим к типу для конфига
+        setCurrentMask(actualType, fullPath);
+    }
+
+    // --- Запуск/Остановка случайной смены масок ---
+    function startRandomMaskChanges(intervalSeconds = 7) {
+        console.log(`Запуск случайной смены масок каждые ${intervalSeconds} секунд.`);
+        // Очищаем предыдущий интервал, если он был
+        if (maskChangeInterval) {
+            clearInterval(maskChangeInterval);
+        }
+        // Вызываем сразу для установки первой маски
+        changeMaskRandomly();
+        // Устанавливаем интервал
+        maskChangeInterval = setInterval(changeMaskRandomly, intervalSeconds * 1000);
+    }
+
+    function stopRandomMaskChanges() {
+         if (maskChangeInterval) {
+            clearInterval(maskChangeInterval);
+            maskChangeInterval = null;
+            console.log("Случайная смена масок остановлена.");
+        }
+    }
+
     // --- Основной цикл распознавания и рисования ---
     async function detectAndDraw() {
-        // Проверяем готовность перед каждой итерацией
         if (!modelsLoaded || !videoReady || video.paused || video.ended || video.readyState < 3) {
-             // Если не готовы, продолжаем запрашивать кадр, но ничего не делаем
-             requestAnimationFrame(detectAndDraw);
-             return;
+            requestAnimationFrame(detectAndDraw);
+            return;
         }
 
-        // Настройки детектора
         const detectionOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 320 });
-
-        // Обнаружение лица и точек
-        let detection = null; // Объявляем переменную здесь
+        let detection = null;
         try {
-             detection = await faceapi.detectSingleFace(video, detectionOptions).withFaceLandmarks(true);
-        } catch(detectionError){
-             console.error("Ошибка при обнаружении лица:", detectionError);
-             // Можно добавить логику обработки ошибки обнаружения, если нужно
-             requestAnimationFrame(detectAndDraw); // Продолжаем цикл
-             return;
+            detection = await faceapi.detectSingleFace(video, detectionOptions).withFaceLandmarks(true);
+        } catch (detectionError) {
+            console.error("Ошибка при обнаружении лица:", detectionError);
+            requestAnimationFrame(detectAndDraw);
+            return;
         }
 
-
-        // Очистка и рисование видео
-        // Убедимся, что размеры canvas актуальны (на случай редких изменений)
         if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -261,88 +295,99 @@ document.addEventListener('DOMContentLoaded', (event) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Рисование маски, если лицо найдено и маска выбрана/загружена
-        if (detection && currentMaskName !== 'none' && currentMaskImage) {
+        // Рисуем маску
+        if (detection && currentMaskType !== 'none' && currentMaskImage) {
             const landmarks = detection.landmarks;
-            const maskConfig = MASK_CONFIG[currentMaskName];
+            const typeConfig = MASK_TYPE_CONFIG[currentMaskType]; // Получаем конфиг для типа
 
-            if (!maskConfig) { // Доп. проверка на случай, если конфиг пропал
-                 requestAnimationFrame(detectAndDraw);
-                 return;
+            if (!typeConfig) {
+                console.warn(`Нет конфига для типа маски: ${currentMaskType}`);
+                requestAnimationFrame(detectAndDraw);
+                return;
             }
 
             let x, y, width, height;
 
-            try { // Обернем расчет координат в try...catch на всякий случай
-                if (maskConfig.type === 'glasses') {
+            try {
+                const leftEyeBrow = landmarks.getLeftEyeBrow();
+                const rightEyeBrow = landmarks.getRightEyeBrow();
+                // Ширина между внешними краями бровей (используем для ОБОИХ типов)
+                const browWidth = (rightEyeBrow[4].x - leftEyeBrow[0].x);
+                width = browWidth * typeConfig.scale; // Масштаб из конфига типа
+                height = width * (currentMaskImage.naturalHeight / currentMaskImage.naturalWidth); // Пропорциональная высота
+
+                if (currentMaskType === 'glasses') {
+                    // Центрируем по X относительно бровей
+                    const browCenterX = (leftEyeBrow[0].x + rightEyeBrow[4].x) / 2;
+                    x = browCenterX - width / 2;
+
+                    // Позиционируем по Y относительно глаз
                     const leftEye = landmarks.getLeftEye();
                     const rightEye = landmarks.getRightEye();
-                    const leftPoint = leftEye[0];
-                    const rightPoint = rightEye[3];
-                    const eyeCenter = { x: (leftPoint.x + rightPoint.x) / 2, y: (leftPoint.y + rightPoint.y) / 2 };
-                    width = (rightPoint.x - leftPoint.x) * maskConfig.scale;
-                    height = width * (currentMaskImage.naturalHeight / currentMaskImage.naturalWidth);
-                    x = eyeCenter.x - width / 2;
-                    y = eyeCenter.y - height / 2 + height * maskConfig.offsetY;
+                    const eyeCenterY = (leftEye[0].y + rightEye[3].y) / 2;
+                    // Смещаем по Y относительно центра глаз + коррекция offsetY из конфига
+                    y = eyeCenterY - height / 2 + height * typeConfig.offsetY;
 
-                } else if (maskConfig.type === 'crown') {
-                    const leftEyeBrow = landmarks.getLeftEyeBrow();
-                    const rightEyeBrow = landmarks.getRightEyeBrow();
-                    const leftPoint = leftEyeBrow[0];
-                    const rightPoint = rightEyeBrow[4];
+                } else if (currentMaskType === 'crown') {
+                     // Центрируем по X относительно бровей
+                     const browCenterX = (leftEyeBrow[0].x + rightEyeBrow[4].x) / 2;
+                     x = browCenterX - width / 2;
+
+                    // Позиционируем по Y относительно линии бровей
                     const browMidTopY = (leftEyeBrow[2].y + rightEyeBrow[2].y) / 2;
-                    const browCenterX = (leftPoint.x + rightPoint.x) / 2;
-                    width = (rightPoint.x - leftPoint.x) * maskConfig.scale;
-                    height = width * (currentMaskImage.naturalHeight / currentMaskImage.naturalWidth);
-                    x = browCenterX - width / 2;
-                    const targetCenterY = browMidTopY + (height * maskConfig.offsetY); // offsetY < 0 смещает вверх
+                    // targetCenterY - желаемая Y-координата ЦЕНТРА короны
+                    const targetCenterY = browMidTopY + (height * typeConfig.offsetY); // offsetY < 0 смещает вверх
+                    // Координата верхнего края (y) = целевой центр минус половина высоты
                     y = targetCenterY - (height / 2);
                 }
 
-                // Рисуем маску, если координаты валидны
+                // Рисуем, если координаты валидны
                 if (x !== undefined && y !== undefined && width > 0 && height > 0 && !isNaN(x) && !isNaN(y) && !isNaN(width) && !isNaN(height)) {
-                    // Опциональная проверка: не рисовать за пределами холста
-                     if (x < canvas.width && y < canvas.height && x + width > 0 && y + height > 0) {
+                    if (x < canvas.width && y < canvas.height && x + width > 0 && y + height > 0) {
                         ctx.drawImage(currentMaskImage, x, y, width, height);
-                     }
-                } else {
-                     // console.warn(`Не удалось рассчитать валидные координаты для маски ${currentMaskName}`);
+                    }
                 }
 
             } catch (coordError) {
-                console.error(`Ошибка при расчете координат маски '${currentMaskName}':`, coordError);
-                // Можно сбросить маску или просто пропустить кадр
-                // setCurrentMask('none');
+                console.error(`Ошибка при расчете координат маски '${currentMaskFullPath}':`, coordError);
             }
-        } else if (detection && currentMaskName !== 'none' && !currentMaskImage) {
-            // console.log(`Ожидание/ошибка загрузки изображения для маски: ${currentMaskName}`);
         }
 
-        // Запрашиваем следующий кадр
         requestAnimationFrame(detectAndDraw);
     }
 
-    // --- ЕДИНЫЙ обработчик кликов по кнопкам масок ---
-    function handleMaskButtonClick(event) {
-        if (event.target.tagName === 'BUTTON' && event.target.dataset.mask) {
-            const maskName = event.target.dataset.mask;
-            setCurrentMask(maskName);
+    // --- Функция скриншота ---
+    function takeScreenshot() {
+        try {
+            // Убедимся, что на холсте что-то нарисовано (последний кадр)
+             if (canvas.width > 0 && canvas.height > 0) {
+                 const dataUrl = canvas.toDataURL('image/png'); // Получаем данные изображения
+                 const link = document.createElement('a');
+                 link.href = dataUrl;
+                 link.download = `facemask_screenshot_${Date.now()}.png`; // Имя файла с меткой времени
+                 document.body.appendChild(link); // Добавляем ссылку в DOM (нужно для Firefox)
+                 link.click();                      // Имитируем клик для скачивания
+                 document.body.removeChild(link); // Удаляем ссылку
+                 console.log("Скриншот сохранен.");
+             } else {
+                console.warn("Невозможно сделать скриншот: холст пуст.");
+                alert("Не удалось сделать скриншот. Возможно, камера еще не запустилась.");
+             }
+        } catch (e) {
+            console.error("Ошибка при создании скриншота:", e);
+            alert(`Ошибка при создании скриншота: ${e.message}`);
         }
     }
 
-    // --- Добавление обработчиков событий на ОБА блока управления ---
-    if (glassesControls) {
-        glassesControls.addEventListener('click', handleMaskButtonClick);
-    }
-    if (otherControls) {
-        otherControls.addEventListener('click', handleMaskButtonClick);
+    // --- Добавление обработчика на кнопку скриншота ---
+    if (screenshotButton) {
+        screenshotButton.addEventListener('click', takeScreenshot);
     }
 
     // --- Инициализация приложения ---
     console.log("Запуск инициализации приложения...");
     preloadMaskImages(); // Начинаем предзагрузку масок
-    loadModels(); // Начинаем загрузку моделей face-api
-    startVideo(); // Запрашиваем доступ к камере параллельно с загрузкой моделей
-                 // Основной цикл запустится только когда ОБА процесса завершатся (в checkReadyAndStart)
+    loadModels();        // Начинаем загрузку моделей
+    startVideo();        // Запрашиваем доступ к камере
 
-}); // Конец обработчика DOMContentLoaded
+}); // Конец DOMContentLoaded
