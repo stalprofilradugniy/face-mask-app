@@ -3,32 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Маски для Лики :)</title>
+    <title>Случайные Маски</title>
     <link rel="stylesheet" href="style.css">
-   
+    <!-- Скрипты загружаются после парсинга HTML -->
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script defer src="script.js"></script>
 </head>
 <body>
-   
-    <div id="glasses-controls" class="control-set">
-        <button data-mask="glasses1">Очки 1</button>
-        <button data-mask="glasses2">Очки 2</button>
-        <button data-mask="glasses3">Очки 3</button>
-    </div>
+    <h1>Примерь случайную маску!</h1>
 
+    <!-- Контейнер с видео и холстом -->
     <div class="container">
         <video id="video" autoplay muted playsinline></video>
         <canvas id="canvas"></canvas>
+        <!-- Индикатор загрузки -->
         <div id="loading">Загрузка...</div>
     </div>
 
-    <div id="other-controls" class="control-set">
-        <button data-mask="crown1">Корона 1</button>
-        <button data-mask="crown2">Корона 2</button>
-        <button data-mask="crown3">Корона 3</button>
-        <p>Убрать:</p>
-        <button data-mask="none">Без маски</button>
+    <!-- Кнопка Скриншота -->
+    <div class="screenshot-controls">
+        <button id="screenshot-button">Скриншот</button>
     </div>
 
 </body>
