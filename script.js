@@ -1,5 +1,3 @@
-// ВАЖНО: Этот код ожидает файлы вида glasses_1.png, crown_1.png и т.д. в папке /masks/
-
 document.addEventListener('DOMContentLoaded', (event) => {
 
     // --- Получение ссылок на HTML элементы ---
@@ -15,11 +13,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const ctx = canvas.getContext('2d');
 
     // --- Переменные состояния ---
-    let currentMaskType = 'none'; // 'glasses', 'crown', 'none'
+    let currentMaskType = 'none';
     let currentMaskFullPath = null;
     let currentMaskImage = null;
-    const maskImages = {};
-    let loadedMasks = []; // Массив объектов { path: '...', type: '...' }
+    // ИСПРАВЛЕНО: Используем let вместо const, чтобы можно было очищать кэш
+    let maskImages = {};
+    let loadedMasks = [];
     let modelsLoaded = false;
     let videoReady = false;
 
@@ -40,11 +39,21 @@ document.addEventListener('DOMContentLoaded', (event) => {
     function takeScreenshot() { try { if (canvas.width > 0 && canvas.height > 0) { const dataUrl = canvas.toDataURL('image/png'); const link = document.createElement('a'); link.href = dataUrl; link.download = `facemask_screenshot_${Date.now()}.png`; document.body.appendChild(link); link.click(); document.body.removeChild(link); console.log("Скриншот сохранен."); } else { console.warn("Невозможно сделать скриншот."); alert("Не удалось сделать скриншот."); } } catch (e) { console.error("Ошибка при создании скриншота:", e); alert(`Ошибка при создании скриншота: ${e.message}`); } }
     // --- Конец неизменных функций ---
 
-    // --- Предзагрузка масок с ПРЕФИКСАМИ ---
+    // Вспомогательная функция для загрузки изображения
+    function loadImage(path) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => { if (image.naturalHeight === 0) { reject(new Error('Invalid image height')); } else { resolve(image); } };
+            image.onerror = () => reject(new Error('Load error')); image.src = path;
+        });
+    }
+
+    // --- Предзагрузка масок с префиксами ---
     async function preloadMaskImages() {
         console.log("Загрузка масок с префиксами (glasses_*, crown_*)");
+        // Очищаем ПЕРЕД началом загрузки
         loadedMasks = [];
-        maskImages = {};
+        maskImages = {}; // Теперь это работает, так как maskImages объявлен через let
         let errorCount = 0;
         const prefixes = ['glasses', 'crown'];
         const MAX_MASKS_PER_PREFIX = 50;
@@ -62,47 +71,32 @@ document.addEventListener('DOMContentLoaded', (event) => {
         // Ищем маски с префиксами
         for (const prefix of prefixes) {
             for (let i = 1; i <= MAX_MASKS_PER_PREFIX; i++) {
-                const filename = `${prefix}_${i}.png`;
-                const path = `./masks/${filename}`;
+                const filename = `${prefix}_${i}.png`; const path = `./masks/${filename}`;
                 const loadPromise = new Promise(async (resolve) => {
                     try {
                         const img = await loadImage(path);
                         console.log(`    [+] Успех: ${path}`); maskImages[path] = img;
-                        loadedMasks.push({ path: path, type: prefix }); // Сохраняем тип по префиксу
+                        loadedMasks.push({ path: path, type: prefix });
                         resolve(true);
                     } catch (error) {
-                        if (!(error instanceof Error && error.message === 'Load error')) { // Логируем только реальные ошибки
-                            console.error(`    [-] Ошибка загрузки/валидации ${path}:`, error); errorCount++;
-                        }
-                        resolve(false); // Неудача или не найден (404)
+                        if (!(error instanceof Error && error.message === 'Load error')) { console.error(`    [-] Ошибка загрузки/валидации ${path}:`, error); errorCount++; }
+                        resolve(false);
                     }
                 });
                 loadingPromises.push(loadPromise);
-                const success = await loadPromise; // Ждем результат перед переходом к следующему номеру
-                if (!success) { console.log(`  Останавливаем поиск для '${prefix}' после ${path}`); break; } // Прерываем поиск для этого префикса
+                const success = await loadPromise;
+                if (!success) { console.log(`  Останавливаем поиск для '${prefix}' после ${path}`); break; }
             }
         }
 
-        await Promise.all(loadingPromises); // Ждем завершения всех фоновых загрузок
+        await Promise.all(loadingPromises);
         console.log(`Предзагрузка завершена. Успешно загружено масок: ${loadedMasks.length}. Ошибок (кроме 404): ${errorCount}.`);
         console.log("Итоговый список загруженных масок:", loadedMasks);
     }
 
-    // Вспомогательная функция для загрузки изображения
-    function loadImage(path) { /* ... код без изменений ... */ }
-     // --- Копируем неизменную функцию loadImage ---
-    function loadImage(path) {
-        return new Promise((resolve, reject) => {
-            const image = new Image();
-            image.onload = () => { if (image.naturalHeight === 0) { reject(new Error('Invalid image height')); } else { resolve(image); } };
-            image.onerror = () => reject(new Error('Load error')); image.src = path;
-        });
-    }
-    // --- Конец неизменной функции loadImage ---
-
     // --- Установка текущей маски ---
     function setCurrentMask(type, fullPath) { /* ... код без изменений ... */ }
-     // --- Копируем неизменную функцию setCurrentMask ---
+    // --- Копируем неизменную функцию setCurrentMask ---
     function setCurrentMask(type, fullPath) {
         if (maskImages[fullPath] && maskImages[fullPath].complete && maskImages[fullPath].naturalHeight > 0) {
             currentMaskType = type; currentMaskFullPath = fullPath; currentMaskImage = maskImages[fullPath];
@@ -117,12 +111,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
     }
     // --- Конец неизменной функции setCurrentMask ---
 
+
     // --- Функция случайного выбора маски ---
     function changeMaskRandomly() { /* ... код без изменений ... */ }
-     // --- Копируем неизменную функцию changeMaskRandomly ---
+    // --- Копируем неизменную функцию changeMaskRandomly ---
     function changeMaskRandomly() {
         console.log("--- Попытка смены маски по кнопке ---");
-        const availableOptions = [...loadedMasks]; // Копируем массив {path, type}
+        const availableOptions = [...loadedMasks];
         const nonePath = './masks/none.png';
         if (maskImages[nonePath] && maskImages[nonePath].complete && maskImages[nonePath].naturalHeight > 0) {
             availableOptions.push({ path: nonePath, type: 'none' });
@@ -135,14 +130,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
             if (selectableOptions.length === 0) selectableOptions = availableOptions;
         }
         const randomIndex = Math.floor(Math.random() * selectableOptions.length);
-        const chosenMask = selectableOptions[randomIndex]; // { path: '...', type: '...' }
+        const chosenMask = selectableOptions[randomIndex];
         console.log(`Выбрана случайная опция: Тип=${chosenMask.type}, Путь=${chosenMask.path}`);
         setCurrentMask(chosenMask.type, chosenMask.path);
         console.log("--- Смена маски завершена ---");
     }
     // --- Конец неизменной функции changeMaskRandomly ---
 
-    // --- Основной цикл отрисовки (Использует РАЗНЫЕ конфиги и логику) ---
+
+    // --- Основной цикл отрисовки ---
     async function detectAndDraw() { /* ... код без изменений ... */ }
     // --- Копируем неизменную функцию detectAndDraw ---
     async function detectAndDraw() {
@@ -170,7 +166,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     const browCenterX = (leftEyeBrow[0].x + rightEyeBrow[4].x) / 2; x = browCenterX - width / 2;
                     const browMidTopY = (leftEyeBrow[2].y + rightEyeBrow[2].y) / 2;
                     const targetCenterY = browMidTopY + (height * typeConfig.offsetY); y = targetCenterY - (height / 2);
-                } else { // Логика по умолчанию (если тип не распознан)
+                } else { // Логика по умолчанию
                     console.warn(`Неизвестный тип '${currentMaskType}', используем позиционирование по умолчанию.`);
                     const defaultConf = DEFAULT_MASK_CONFIG; width = browWidth * defaultConf.scale;
                     height = width * (currentMaskImage.naturalHeight / currentMaskImage.naturalWidth);
@@ -198,7 +194,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     // --- Инициализация приложения ---
     console.log("Запуск инициализации приложения...");
-    preloadMaskImages(); // Запускаем загрузку с префиксами
+    preloadMaskImages();
     loadModels();
     startVideo();
 
